@@ -26,7 +26,10 @@ def main():
     parser.add_argument("query", nargs="?", default="", help="task, capability, or project keyword")
     parser.add_argument("--kind", choices=["skill", "agent", "mcp", "tool"])
     parser.add_argument("--tag", help="taxonomy slug, such as design or testing")
+    parser.add_argument("--workflow", help="business workflow slug, such as appointments or accounting")
+    parser.add_argument("--industry", help="project industry slug, such as beauty or finance")
     parser.add_argument("--limit", type=int, default=10)
+    parser.add_argument("--lang", choices=["zh", "en"], default="zh", help="description and tag language")
     parser.add_argument("--include-inactive", action="store_true")
     parser.add_argument("--catalog", help="local JSON file or HTTPS URL")
     args = parser.parse_args()
@@ -49,8 +52,25 @@ def main():
             continue
         if args.tag and args.tag not in item.get("tags", []):
             continue
-        tag_names = " ".join(catalog.get("taxonomy", {}).get(tag, tag) for tag in item.get("tags", []))
-        haystack = " ".join((item.get("name", ""), item.get("description", ""), item.get("summary_zh", ""), repo.get("full_name", ""), tag_names)).casefold()
+        if args.workflow and args.workflow not in item.get("workflows", []):
+            continue
+        if args.industry and args.industry not in [match.get("tag") for match in item.get("industry_matches", [])]:
+            continue
+        tag_names = " ".join(
+            catalog.get(table, {}).get(tag, tag)
+            for table in ("taxonomy", "taxonomy_en") for tag in item.get("tags", [])
+        )
+        facet_names = " ".join(
+            catalog.get(table, {}).get(tag, tag)
+            for table, tags in (("workflow_labels", item.get("workflows", [])),
+                                ("workflow_labels_en", item.get("workflows", [])),
+                                ("industry_labels", [match.get("tag") for match in item.get("industry_matches", [])]),
+                                ("industry_labels_en", [match.get("tag") for match in item.get("industry_matches", [])]))
+            for tag in tags
+        )
+        haystack = " ".join((item.get("name", ""), item.get("description", ""), item.get("description_zh", ""),
+                              item.get("description_en", ""), item.get("use_case_zh", ""), item.get("use_case_en", ""),
+                              repo.get("full_name", ""), tag_names, facet_names)).casefold()
         if query and query not in haystack:
             continue
         matches.append((item, repo))
@@ -58,10 +78,15 @@ def main():
     print("Catalog updated:", catalog.get("generated_at", "unknown"), "| results:", len(matches))
     for item, repo in matches[:max(1, min(args.limit, 50))]:
         print("\n{} [{}] — {}".format(item.get("name"), item.get("kind"), repo.get("full_name")))
-        print("  {}".format(item.get("summary_zh") or item.get("description") or "No description"))
+        use_case = item.get("use_case_" + args.lang) or item.get("description_" + args.lang) or ("中文简介待生成" if args.lang == "zh" else "English summary pending")
+        print("  {}".format(use_case))
         print("  Tags: {} | method: {} | repository Stars: {} | 30d growth: {}".format(
             ", ".join(item.get("tags", [])) or "unclassified", item.get("method", "unknown"),
             repo.get("stars", 0), repo.get("stars_30d") if repo.get("stars_30d") is not None else "history unavailable"))
+        if item.get("workflows") or item.get("industry_matches"):
+            print("  Workflows: {} | Industries: {}".format(
+                ", ".join(item.get("workflows", [])) or "none",
+                ", ".join(match.get("tag", "") + " (" + match.get("basis", "") + ")" for match in item.get("industry_matches", [])) or "none"))
         for evidence in item.get("evidence", [])[:2]:
             print("  Evidence: {} — {}".format(evidence.get("path"), evidence.get("excerpt", "")[:120]))
         print("  Source:", item.get("source_url"))

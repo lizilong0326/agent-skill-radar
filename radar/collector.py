@@ -4,6 +4,7 @@ import argparse
 import base64
 import datetime as dt
 import hashlib
+import html
 import json
 import os
 import re
@@ -18,7 +19,10 @@ import urllib.request
 from pathlib import Path
 
 from .classifier import classify
-from .taxonomy import GROUP_LABELS, TAG_GROUPS, TAXONOMY
+from .facets import FACETS_VERSION, INDUSTRY_LABELS_EN, INDUSTRY_LABELS_ZH, WORKFLOW_LABELS_EN, WORKFLOW_LABELS_ZH, classify_facets
+from .taxonomy import GROUP_LABELS, GROUP_LABELS_EN, TAG_GROUPS, TAXONOMY, TAXONOMY_EN
+from .translation import load_local_config, retained_translation, translate_catalog
+from .use_cases import generate_use_cases, retained_use_case
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -31,6 +35,9 @@ SEARCH_QUERIES = [
     '"SKILL.md" in:readme stars:>=80 archived:false fork:false',
 ]
 SEED_REPOS = [
+    "alextselegidis/easyappointments",
+    "calcom/cal.diy",
+    "frappe/erpnext",
     "vercel-labs/skills",
     "obra/superpowers",
     "github/github-mcp-server",
@@ -123,7 +130,7 @@ class GitHubAPI:
 
 
 def empty_catalog():
-    return {"schema_version": 1, "generated_at": None, "taxonomy": {key: value["label"] for key, value in TAXONOMY.items()}, "tag_groups": TAG_GROUPS, "group_labels": GROUP_LABELS, "repositories": [], "items": []}
+    return {"schema_version": 3, "generated_at": None, "taxonomy": {key: value["label"] for key, value in TAXONOMY.items()}, "taxonomy_en": TAXONOMY_EN, "tag_groups": TAG_GROUPS, "group_labels": GROUP_LABELS, "group_labels_en": GROUP_LABELS_EN, "workflow_labels": WORKFLOW_LABELS_ZH, "workflow_labels_en": WORKFLOW_LABELS_EN, "industry_labels": INDUSTRY_LABELS_ZH, "industry_labels_en": INDUSTRY_LABELS_EN, "repositories": [], "items": []}
 
 
 def load_catalog():
@@ -149,16 +156,21 @@ def repo_record(raw, old=None):
     history = [entry for entry in old.get("star_history", []) if entry.get("date") != today]
     history.append({"date": today, "stars": raw.get("stargazers_count", 0)})
     history = history[-120:]
+    description = raw.get("description") or ""
     result = {
         "id": raw["id"],
         "full_name": raw["full_name"],
         "url": raw["html_url"],
-        "description": raw.get("description") or "",
+        "description": description,
+        **retained_translation(old, description),
         "stars": raw.get("stargazers_count", 0),
         "forks": raw.get("forks_count", 0),
         "license": license_info.get("spdx_id") or "",
         "topics": raw.get("topics") or [],
         "default_branch": raw.get("default_branch") or "main",
+        "usage_note_zh": old.get("usage_note_zh", ""),
+        "usage_note_en": old.get("usage_note_en", ""),
+        "usage_note_excerpt": old.get("usage_note_excerpt", ""),
         "pushed_at": raw.get("pushed_at"),
         "archived": bool(raw.get("archived")),
         "first_seen": old.get("first_seen") or today,
@@ -211,7 +223,19 @@ def extract_description(content, fallback=""):
                 return value.strip("'\"")[:240]
     paragraphs = re.split(r"\n\s*\n", content)
     for paragraph in paragraphs:
-        cleaned = re.sub(r"[`*#>\[\]]", "", paragraph).strip()
+        if paragraph.lstrip().startswith("> [!"):
+            continue
+        if paragraph.count("href=") >= 2 or paragraph.count("•") >= 2:
+            continue
+        if "<img" in paragraph or "![(" in paragraph or "shields.io" in paragraph:
+            continue
+        if len(re.findall(r"README[^\s)]*\.md", paragraph, re.IGNORECASE)) >= 2 and re.search(r"English|中文|简体|Español|Deutsch|日本語|한국어", paragraph, re.IGNORECASE):
+            continue
+        if "<" in paragraph and ">" in paragraph:
+            cleaned = html.unescape(re.sub(r"<[^>]*>", " ", paragraph))
+        else:
+            cleaned = paragraph
+        cleaned = re.sub(r"[`*#>\[\]]", "", cleaned).strip()
         if 35 <= len(cleaned) <= 500 and not cleaned.startswith(("---", "<", "!")):
             return re.sub(r"\s+", " ", cleaned)[:240]
     return fallback[:240]
@@ -298,6 +322,11 @@ def build_items(api, repo, old_items, args, ai_budget):
         readme, readme_path = api.readme(full_name)
     except Exception:
         pass
+    if readme:
+        caution = next((line.strip(" >") for line in readme.splitlines() if re.search(r"personal, non-production use", line, re.IGNORECASE)), "")
+        repo["usage_note_zh"] = "官方 README 建议仅用于个人、非生产环境。" if caution else ""
+        repo["usage_note_en"] = "The README recommends personal, non-production use only." if caution else ""
+        repo["usage_note_excerpt"] = caution[:300]
     try:
         tree = api.tree(full_name, repo["default_branch"])
     except Exception as exc:
@@ -327,19 +356,26 @@ def build_items(api, repo, old_items, args, ai_budget):
         digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
         old = old_by_id.get(item_id, {})
         has_key = bool(os.getenv("DEEPSEEK_API_KEY"))
-        should_reclassify = old.get("content_hash") != digest or (old.get("method") != "deepseek" and (args.reclassify_all or (has_key and ai_budget > 0)))
+        should_reclassify = old.get("content_hash") != digest or old.get("facets_version") != FACETS_VERSION or (old.get("method") != "deepseek" and (args.reclassify_all or (has_key and ai_budget > 0)))
         if should_reclassify:
-            use_ai = has_key and ai_budget > 0
-            category = classify({path: content}, "skill", use_ai)
-            ai_budget -= int(use_ai)
+            if old.get("content_hash") == digest and old.get("method") == "deepseek" and not args.reclassify_all:
+                category = {key: old.get(key) for key in ("tags", "evidence", "method", "confidence", "summary_zh", "model") if key in old}
+                category.update(classify_facets({path: content}))
+            else:
+                use_ai = has_key and ai_budget > 0
+                category = classify({path: content}, "skill", use_ai)
+                ai_budget -= int(use_ai)
         else:
-            category = {key: old.get(key) for key in ("tags", "evidence", "method", "confidence", "summary_zh", "model") if key in old}
+            category = {key: old.get(key) for key in ("tags", "evidence", "method", "confidence", "summary_zh", "model", "workflows", "workflow_evidence", "industry_matches", "facets_source", "facets_version") if key in old}
+        description = extract_description(content, repo["description"])
         records[item_id] = {
             "id": item_id,
             "repo_id": repo["id"],
             "kind": "skill",
             "name": Path(path).parent.name if path != "SKILL.md" else full_name.split("/")[-1],
-            "description": extract_description(content, repo["description"]),
+            "description": description,
+            **retained_translation(old, description),
+            **retained_use_case(old, description),
             "source_path": path,
             "source_url": repo["url"] + "/blob/" + repo["default_branch"] + "/" + urllib.parse.quote(path),
             "content_hash": digest,
@@ -361,19 +397,26 @@ def build_items(api, repo, old_items, args, ai_budget):
         digest = hashlib.sha256(readme.encode("utf-8")).hexdigest()
         old = old_by_id.get(item_id, {})
         has_key = bool(os.getenv("DEEPSEEK_API_KEY"))
-        should_reclassify = old.get("content_hash") != digest or (old.get("method") != "deepseek" and (args.reclassify_all or (has_key and ai_budget > 0)))
+        should_reclassify = old.get("content_hash") != digest or old.get("facets_version") != FACETS_VERSION or (old.get("method") != "deepseek" and (args.reclassify_all or (has_key and ai_budget > 0)))
         if should_reclassify:
-            use_ai = has_key and ai_budget > 0
-            category = classify({path: readme}, kind, use_ai)
-            ai_budget -= int(use_ai)
+            if old.get("content_hash") == digest and old.get("method") == "deepseek" and not args.reclassify_all:
+                category = {key: old.get(key) for key in ("tags", "evidence", "method", "confidence", "summary_zh", "model") if key in old}
+                category.update(classify_facets({path: readme}))
+            else:
+                use_ai = has_key and ai_budget > 0
+                category = classify({path: readme}, kind, use_ai)
+                ai_budget -= int(use_ai)
         else:
-            category = {key: old.get(key) for key in ("tags", "evidence", "method", "confidence", "summary_zh", "model") if key in old}
+            category = {key: old.get(key) for key in ("tags", "evidence", "method", "confidence", "summary_zh", "model", "workflows", "workflow_evidence", "industry_matches", "facets_source", "facets_version") if key in old}
+        description = extract_description(readme, repo["description"])
         records[item_id] = {
             "id": item_id,
             "repo_id": repo["id"],
             "kind": kind,
             "name": full_name.split("/")[-1],
-            "description": extract_description(readme, repo["description"]),
+            "description": description,
+            **retained_translation(old, description),
+            **retained_use_case(old, description),
             "source_path": path,
             "source_url": repo["url"] + "/blob/" + repo["default_branch"] + "/" + urllib.parse.quote(path),
             "content_hash": digest,
@@ -403,7 +446,9 @@ def refresh(args):
     print("Repositories queued:", len(names), "new:", len(new_names))
     repos = []
     items = []
-    ai_budget = args.max_ai_calls
+    has_key = bool(os.getenv("DEEPSEEK_API_KEY"))
+    classification_limit = args.max_ai_calls * 2 // 3 if has_key else args.max_ai_calls
+    ai_budget = classification_limit
     for index, name in enumerate(names, 1):
         old_repo = existing.get(name, {})
         try:
@@ -423,7 +468,7 @@ def refresh(args):
         status, reason = inactivity(repo)
         repo["status"], repo["status_reason"] = status, reason
         has_rule_backlog = bool(os.getenv("DEEPSEEK_API_KEY")) and ai_budget > 0 and any(item.get("method") != "deepseek" for item in old_items.get(repo["id"], []))
-        needs_docs = args.reclassify_all or not old_repo or not old_items.get(repo["id"]) or old_repo.get("pushed_at") != repo.get("pushed_at") or old_repo.get("documents_pending", 0) > 0 or has_rule_backlog
+        needs_docs = args.reclassify_all or not old_repo or not old_items.get(repo["id"]) or old_repo.get("pushed_at") != repo.get("pushed_at") or old_repo.get("documents_pending", 0) > 0 or has_rule_backlog or any(item.get("facets_source") != "full_document" or item.get("facets_version") != FACETS_VERSION for item in old_items.get(repo["id"], []))
         if needs_docs:
             fresh, ai_budget = build_items(api, repo, old_items.get(repo["id"], []), args, ai_budget)
         else:
@@ -442,16 +487,26 @@ def refresh(args):
             repos.append(old_repo)
             items.extend(old_items.get(old_repo["id"], []))
     catalog.update({
+        "schema_version": 3,
         "generated_at": iso_now(),
         "taxonomy": {key: value["label"] for key, value in TAXONOMY.items()},
+        "taxonomy_en": TAXONOMY_EN,
         "tag_groups": TAG_GROUPS,
         "group_labels": GROUP_LABELS,
+        "group_labels_en": GROUP_LABELS_EN,
+        "workflow_labels": WORKFLOW_LABELS_ZH,
+        "workflow_labels_en": WORKFLOW_LABELS_EN,
+        "industry_labels": INDUSTRY_LABELS_ZH,
+        "industry_labels_en": INDUSTRY_LABELS_EN,
         "repositories": sorted(repos, key=lambda value: value["stars"], reverse=True),
         "items": sorted(items, key=lambda value: (value["repo_id"], value["source_path"])),
     })
+    remaining_calls = args.max_ai_calls - classification_limit + ai_budget
+    translation_calls, translation_pending, _ = translate_catalog(catalog, remaining_calls)
+    summary_calls, summary_pending = generate_use_cases(catalog, remaining_calls - translation_calls)
     write_json(DATA_FILE, catalog)
     write_json(SITE_DATA_FILE, catalog)
-    print("Saved:", len(repos), "repositories,", len(items), "items;", api.calls, "GitHub API calls")
+    print("Saved:", len(repos), "repositories,", len(items), "items;", api.calls, "GitHub API calls;", translation_calls, "translation calls;", translation_pending, "translations pending;", summary_calls, "use-case calls;", summary_pending, "summaries pending")
 
 
 def main():
@@ -462,7 +517,20 @@ def main():
     parser.add_argument("--min-stars", type=int, default=80)
     parser.add_argument("--max-ai-calls", type=int, default=100)
     parser.add_argument("--reclassify-all", action="store_true")
-    refresh(parser.parse_args())
+    parser.add_argument("--translate-only", action="store_true", help="backfill Chinese descriptions without fetching GitHub")
+    args = parser.parse_args()
+    load_local_config()
+    if args.translate_only:
+        catalog = load_catalog()
+        catalog.update({"schema_version": 3, "taxonomy_en": TAXONOMY_EN, "group_labels_en": GROUP_LABELS_EN, "workflow_labels": WORKFLOW_LABELS_ZH, "workflow_labels_en": WORKFLOW_LABELS_EN, "industry_labels": INDUSTRY_LABELS_ZH, "industry_labels_en": INDUSTRY_LABELS_EN})
+        calls, pending, changed = translate_catalog(catalog, args.max_ai_calls)
+        summary_calls, summary_pending = generate_use_cases(catalog, args.max_ai_calls - calls)
+        if changed or summary_calls:
+            write_json(DATA_FILE, catalog)
+            write_json(SITE_DATA_FILE, catalog)
+        print("Translation calls:", calls, "pending:", pending, "use-case calls:", summary_calls, "summaries pending:", summary_pending)
+    else:
+        refresh(args)
 
 
 if __name__ == "__main__":

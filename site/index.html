@@ -3,57 +3,59 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101c2b">
-  <meta name="description" content="每天更新的开源 Skill、Agent 与 MCP 工具目录。按真实文档分类，并公开标签依据。">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%23101c2b'/%3E%3Ccircle cx='32' cy='32' r='19' fill='none' stroke='%23efc06f' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='9' fill='none' stroke='%23efc06f' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='3' fill='%23efc06f'/%3E%3Cpath d='M32 32L47 18' stroke='%23efc06f' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
-  <title>Agent Skill Radar · 开源工具雷达</title>
+  <meta name="theme-color" content="#f5f5f7">
+  <meta name="description" content="发现适合项目的开源 Skill、Agent 与 MCP 工具。每天更新，按文档判断用途与适用场景。">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%230078d4'/%3E%3Ccircle cx='32' cy='32' r='19' fill='none' stroke='white' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='9' fill='none' stroke='white' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='3' fill='white'/%3E%3Cpath d='M32 32L47 18' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <title>Agent Skill Radar · 找到适合项目的开源工具</title>
   <link rel="stylesheet" href="./style.css">
-  <script src="./app.js" defer></script>
+  <link rel="stylesheet" href="./home.css">
+  <script src="./home.js" defer></script>
 </head>
 <body>
-  <div class="app-shell">
-    <header class="topbar">
-      <a class="brand" href="./" aria-label="Agent Skill Radar 首页"><span class="brand-mark" aria-hidden="true"><span></span></span><span>Agent Skill <strong>Radar</strong></span></a>
-      <div class="topbar-right"><span id="sync-status" class="sync-status">正在读取目录…</span><a class="github-link" href="https://github.com/lizilong0326/agent-skill-radar" target="_blank" rel="noopener noreferrer">查看 GitHub ↗</a></div>
+  <div class="app-shell home-shell">
+    <header class="titlebar">
+      <a class="brand" href="./" data-i18n-aria="brandHome" aria-label="Agent Skill Radar 首页"><span class="brand-mark" aria-hidden="true">✦</span><span>Agent Skill Radar</span></a>
+      <nav class="main-nav" data-i18n-aria="navLabel" aria-label="主导航"><a href="./" aria-current="page" data-i18n="navHome">首页</a><a href="./catalog.html" data-i18n="navCatalog">工具目录</a></nav>
+      <div class="titlebar-actions"><div class="language-switch" role="group" aria-label="Language / 语言"><button type="button" data-lang="zh" aria-pressed="true">中文</button><button type="button" data-lang="en" aria-pressed="false">EN</button></div><a class="github-link" href="https://github.com/lizilong0326/agent-skill-radar" target="_blank" rel="noopener noreferrer" data-i18n="viewGithub">GitHub ↗</a></div>
     </header>
 
-    <main class="main-layout">
-      <section class="intro" aria-labelledby="page-title">
-        <div class="eyebrow"><span class="live-dot"></span> 每日更新的开源工具目录</div>
-        <h1 id="page-title">找到真正适合任务的<br><em>Skill、Agent 与 MCP</em></h1>
-        <p>从 GitHub 收集项目，阅读实际说明文件后标注用途。每个标签都能追溯到来源，而仓库热度与单个工具分开展示。</p>
-        <div class="metrics" aria-label="目录概况">
-          <div><strong id="metric-items">—</strong><span>在列工具</span></div>
-          <div><strong id="metric-repos">—</strong><span>开源仓库</span></div>
-          <div><strong id="metric-review">—</strong><span>待进一步核对</span></div>
+    <main class="home-main">
+      <section class="home-hero" aria-labelledby="home-title">
+        <div class="home-hero-copy">
+          <div class="home-eyebrow"><span class="live-dot" aria-hidden="true"></span><span data-i18n="eyebrow">每天更新 · 按真实文档整理</span></div>
+          <h1 id="home-title" data-i18n-html="heroTitle">找到适合你项目的<br><span>开源 AI 工具</span></h1>
+          <p class="home-lead" data-i18n="heroDescription">从 GitHub 和其他开源社区收集 Skill、Agent、MCP。看一眼它能做什么，再按类型、能力和应用场景找到合适的项目。</p>
+          <form class="home-search" action="./catalog.html" method="get" role="search">
+            <label class="sr-only" for="home-query" data-i18n="searchLabel">搜索开源工具</label>
+            <span aria-hidden="true">⌕</span>
+            <input id="home-query" name="q" type="search" autocomplete="off" data-i18n-placeholder="searchPlaceholder" placeholder="搜索工具、用途或仓库…">
+            <button type="submit" data-i18n="searchButton">搜索工具</button>
+          </form>
+          <a class="home-browse-link" href="./catalog.html" data-i18n="browseAll">浏览全部工具 ↗</a>
+        </div>
+
+        <aside class="home-data-panel" data-i18n-aria="overviewLabel" aria-label="目录概况">
+          <div class="home-panel-top"><span data-i18n="overviewLabel">目录概况</span><span class="home-live-label"><span class="live-dot" aria-hidden="true"></span><span data-i18n="updatedDaily">每日更新</span></span></div>
+          <div class="home-primary-stat"><strong id="home-count-items">—</strong><span data-i18n="listedTools">在列工具</span></div>
+          <div class="home-secondary-stat"><strong id="home-count-repos">—</strong><span data-i18n="openRepos">开源仓库</span></div>
+          <p id="home-sync" class="home-sync" role="status" data-i18n="loading">正在读取最新目录…</p>
+          <p id="home-review" class="home-review"></p>
+        </aside>
+      </section>
+
+      <section class="home-categories" aria-labelledby="categories-title">
+        <div class="home-section-head"><div><span class="home-section-eyebrow" data-i18n="startHere">从这里开始</span><h2 id="categories-title" data-i18n="categoryTitle">按工具类型浏览</h2></div><p data-i18n="categoryDescription">三种核心类型都在同一目录中，也可以直接搜索工具或用途。</p></div>
+        <div class="home-category-grid">
+          <a class="home-category" href="./catalog.html?kind=skill"><span class="home-category-icon skill" aria-hidden="true">✧</span><span class="home-category-body"><strong>Skill</strong><span data-i18n="skillDescription">可复用的任务说明与工作方法</span></span><span class="home-category-side"><span id="home-count-skill">—</span><span aria-hidden="true">↗</span></span></a>
+          <a class="home-category" href="./catalog.html?kind=agent"><span class="home-category-icon agent" aria-hidden="true">◈</span><span class="home-category-body"><strong>Agent</strong><span data-i18n="agentDescription">能执行多步任务的智能体项目</span></span><span class="home-category-side"><span id="home-count-agent">—</span><span aria-hidden="true">↗</span></span></a>
+          <a class="home-category" href="./catalog.html?kind=mcp"><span class="home-category-icon mcp" aria-hidden="true">⌘</span><span class="home-category-body"><strong>MCP</strong><span data-i18n="mcpDescription">连接工具和数据的协议服务</span></span><span class="home-category-side"><span id="home-count-mcp">—</span><span aria-hidden="true">↗</span></span></a>
+          <a class="home-category" href="./catalog.html?kind=tool"><span class="home-category-icon tool" aria-hidden="true">▦</span><span class="home-category-body"><strong data-i18n="otherTools">其他工具</strong><span data-i18n="toolDescription">相关开源应用、组件与资源</span></span><span class="home-category-side"><span id="home-count-tool">—</span><span aria-hidden="true">↗</span></span></a>
         </div>
       </section>
 
-      <section class="workspace" aria-label="搜索与筛选工具">
-        <div class="toolbar">
-          <div class="search-wrap"><label class="sr-only" for="search">搜索工具、用途或仓库</label><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="搜索工具、用途、仓库…" autocomplete="off"></div>
-          <label class="sort-wrap" for="sort">排序 <select id="sort"><option value="stars">仓库 Star</option><option value="growth">近 30 天增长</option><option value="updated">最近更新</option><option value="name">名称</option></select></label>
-        </div>
-        <div class="type-row" id="kind-tabs" role="group" aria-label="工具类型"></div>
-        <div class="content-grid">
-          <aside id="filters" class="filters" aria-label="用途标签">
-            <div class="filter-heading"><h2>按用途筛选</h2><div class="filter-actions"><button id="toggle-tags" type="button" aria-expanded="false" aria-controls="tag-filters">展开标签</button><button id="clear-tags" type="button">清除</button></div></div>
-            <div id="tag-filters" class="tag-filters"></div>
-            <label class="archive-toggle"><input type="checkbox" id="include-inactive"><span>包含观察与归档条目</span></label>
-            <div class="method-note"><span class="method-symbol" aria-hidden="true">◎</span><p>标签来自说明文件和使用示例。规则初筛的条目会明确标记，方便继续核对。</p></div>
-          </aside>
-          <div class="results">
-            <div class="results-heading"><h2 id="results-title">全部工具</h2><span id="result-count" role="status" aria-live="polite">读取中…</span></div>
-            <div id="cards" class="cards" aria-live="polite"></div>
-            <button id="load-more" class="load-more" type="button" hidden>显示更多</button>
-          </div>
-        </div>
-      </section>
+      <div class="home-method-note"><span aria-hidden="true">◎</span><p data-i18n="methodNote">工具类型和能力标签依据项目说明与使用示例；打开条目可查看原文。</p></div>
     </main>
-
-    <footer class="footer"><span>Agent Skill Radar · 数据每天自动同步</span><span>Star 属于 GitHub 仓库，不代表单个 Skill 的安装量。</span></footer>
+    <footer class="home-footer"><span>Agent Skill Radar</span><span data-i18n="footerNote">仓库 Star 代表项目热度，不代表单个工具的安装量。</span></footer>
   </div>
-
-  <dialog id="detail-dialog" class="detail-dialog" aria-labelledby="detail-title"><div id="detail-content"></div></dialog>
 </body>
 </html>

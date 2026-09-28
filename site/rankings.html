@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>正在打开统一工具目录 · Agent Skill Radar</title>
+  <script>
+    const old = new URLSearchParams(location.search);
+    const next = new URLSearchParams();
+    const kind = old.get('kind');
+    if (kind === 'agent' || kind === 'mcp') next.set('kind', kind);
+    location.replace('./catalog.html' + (next.size ? '?' + next : '') + location.hash);
+  </script>
+</head>
+<body><p>榜单已并入<a href="./catalog.html">统一工具目录</a>。</p></body>
+</html>

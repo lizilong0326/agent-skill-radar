@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN" class="catalog-page">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f7">
+  <meta name="description" content="每天更新的开源 Skill、Agent 与 MCP 工具合集。按工具类型和能力筛选。">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%230078d4'/%3E%3Ccircle cx='32' cy='32' r='19' fill='none' stroke='white' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='9' fill='none' stroke='white' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='3' fill='white'/%3E%3Cpath d='M32 32L47 18' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <title>工具目录 · Agent Skill Radar</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="titlebar">
+      <a class="brand" href="./" data-i18n-aria="brandHome" aria-label="Agent Skill Radar 首页"><span class="brand-mark" aria-hidden="true">✦</span><span>Agent Skill Radar</span></a>
+      <nav class="main-nav" data-i18n-aria="navLabel" aria-label="主导航"><a href="./" data-i18n="navHome">首页</a><a href="./catalog.html" aria-current="page" data-i18n="navCatalog">工具目录</a></nav>
+      <div class="titlebar-actions"><span id="sync-status" class="sync-status" data-i18n="loadingCatalog">正在读取目录…</span><div class="language-switch" role="group" aria-label="Language / 语言"><button type="button" data-lang="zh" aria-pressed="true">中文</button><button type="button" data-lang="en" aria-pressed="false">EN</button></div><a class="github-link" href="https://github.com/lizilong0326/agent-skill-radar" target="_blank" rel="noopener noreferrer" data-i18n="viewGithub">GitHub ↗</a></div>
+    </header>
+    <main class="main-layout">
+      <aside id="filters" class="sidebar" data-i18n-aria="filterHeading" aria-label="筛选条件">
+        <div class="sidebar-top"><div><span class="sidebar-eyebrow" data-i18n="browse">浏览目录</span><h1 data-i18n="filterHeading">筛选工具</h1></div><button id="close-filters" class="icon-button mobile-only" type="button" data-i18n-aria="closeFilters" aria-label="关闭筛选">×</button></div>
+        <div class="sidebar-scroll">
+          <div class="sidebar-section"><div class="section-title"><h2 data-i18n="capabilityHeading">工具能力</h2><span class="section-help" data-i18n="capabilityHint">可多选</span></div><div id="tag-filters" class="sidebar-options"></div></div>
+          <p class="sidebar-note" data-i18n="facetNote">能力标签来自项目说明，点击条目查看依据。</p>
+        </div>
+      </aside>
+      <section class="workspace" data-i18n-aria="workspaceLabel" aria-label="搜索与筛选工具">
+        <div class="workspace-toolbar">
+          <button id="open-filters" class="icon-button mobile-only" type="button" data-i18n-aria="openFilters" aria-label="打开筛选">☷</button>
+          <div class="search-wrap"><label class="sr-only" for="search" data-i18n="searchLabel">搜索工具、用途或仓库</label><span aria-hidden="true">⌕</span><input id="search" type="search" data-i18n-placeholder="searchPlaceholder" placeholder="搜索工具、用途或仓库…" autocomplete="off"><kbd>⌘ K</kbd></div>
+          <label class="sort-wrap" for="sort"><span class="sr-only" data-i18n="sortLabel">排序</span><select id="sort"><option value="diverse" data-i18n="sortDiverse">均衡浏览</option><option value="added" data-i18n="sortAdded">最近收录</option><option value="updated" data-i18n="sortUpdated">最近维护</option><option value="stars" data-i18n="sortStars">GitHub Star</option><option value="likes" data-i18n="sortLikes">Space 点赞</option><option value="name" data-i18n="sortName">名称</option></select></label>
+          <div class="view-switch" role="group" data-i18n-aria="viewLabel" aria-label="视图"><button type="button" data-view="grid" aria-pressed="true" data-i18n-aria="gridView" aria-label="网格视图">▦</button><button type="button" data-view="list" aria-pressed="false" data-i18n-aria="listView" aria-label="列表视图">☰</button></div>
+        </div>
+        <div class="workspace-scroll">
+          <div id="kind-tabs" class="type-switch" role="group" data-i18n-aria="kindLabel" aria-label="工具类型"></div>
+          <div class="results-heading"><div><span class="results-eyebrow" data-i18n="catalogLabel">目录</span><h2 id="results-title" data-i18n="allTools">全部工具</h2></div><div class="results-actions"><span id="result-count" role="status" aria-live="polite" data-i18n="loading">读取中…</span><button id="clear-all" type="button" data-i18n="clearAll" hidden>清除筛选</button></div></div>
+          <div id="active-filters" class="active-filters" aria-live="polite"></div>
+          <div id="cards" class="cards" aria-live="polite"></div>
+          <button id="load-more" class="load-more" type="button" hidden data-i18n="loadMore">显示更多</button>
+          <footer class="footer"><span data-i18n="footerSync">数据每天自动同步</span><span data-i18n="footerStars">Star 和点赞属于来源项目，不代表单个工具的安装量。</span></footer>
+        </div>
+      </section>
+    </main>
+  </div>
+  <button id="filter-backdrop" class="filter-backdrop" type="button" data-i18n-aria="closeFilters" aria-label="关闭筛选" hidden></button>
+  <dialog id="detail-dialog" class="detail-dialog" aria-labelledby="detail-title"><div id="detail-content"></div></dialog>
+</body>
+</html>
